@@ -65,6 +65,7 @@ class ShowInScratch:
       self.append(content)
     self.poll_copy()
 
+
 class ShowPanels:
   def __init__(self, window):
     self.window = window
@@ -136,32 +137,53 @@ class BaseRubyTask(sublime_plugin.TextCommand):
     global SYNTAX; SYNTAX = s.get('syntax')
     global THEME; THEME = s.get('theme')
 
+    chruby  = s.get("check_for_chruby")
     rbenv   = s.get("check_for_rbenv")
     rvm     = s.get("check_for_rvm")
-    bundler = s.get("check_for_bundler")
+    self.try_chruby(chruby) or self.try_rbenv(rbenv) or self.try_rvm(rvm)
+
     spring  = s.get("check_for_spring")
-    if rbenv or rvm: self.rbenv_or_rvm(s, rbenv, rvm)
     if spring: self.spring_support()
+
+    bundler = s.get("check_for_bundler")
     if bundler: self.bundler_support()
+
+  def try_chruby(self, chruby):
+    if not chruby:
+      return False
+    chruby_cmd = os.path.expanduser('source /usr/local/opt/chruby/share/chruby/chruby.sh && chruby')
+    if not self.is_executable(chruby_cmd):
+      return False
+    global COMMAND_PREFIX
+    COMMAND_PREFIX = chruby_cmd + ' `[ -f .ruby-version ] && cat .ruby-version || ruby` &&'
+    return True
+
+  def try_rbenv(self, rbenv):
+    if not rbenv:
+      return False
+    which = os.popen('which rbenv').read().split('\n')[0]
+    brew = '/usr/local/bin/rbenv'
+    rbenv_cmd = os.path.expanduser('~/.rbenv/bin/rbenv')
+    if os.path.isfile(brew): rbenv_cmd = brew
+    elif os.path.isfile(which): rbenv_cmd = which
+    if not self.is_executable(rbenv_cmd):
+      return False
+    global COMMAND_PREFIX; COMMAND_PREFIX = rbenv_cmd + ' exec'
+    return True
+
+  def try_rvm(self, rvm):
+    if not rvm:
+      return False
+    rvm_cmd = os.path.expanduser('~/.rvm/bin/rvm-auto-ruby')
+    if not self.is_executable(rvm_cmd):
+      return False
+    global COMMAND_PREFIX
+    COMMAND_PREFIX = rvm_cmd + ' -S'
+    return True
 
   def spring_support(self):
     global COMMAND_PREFIX
     COMMAND_PREFIX = COMMAND_PREFIX + " spring "
-
-  def rbenv_or_rvm(self, s, rbenv, rvm):
-    which = os.popen('which rbenv').read().split('\n')[0]
-    brew = '/usr/local/bin/rbenv'
-    rbenv_cmd = os.path.expanduser('~/.rbenv/bin/rbenv')
-    rvm_cmd = os.path.expanduser('~/.rvm/bin/rvm-auto-ruby')
-
-    if os.path.isfile(brew): rbenv_cmd = brew
-    elif os.path.isfile(which): rbenv_cmd = which
-
-    global COMMAND_PREFIX
-    if rbenv and self.is_executable(rbenv_cmd):
-      COMMAND_PREFIX = rbenv_cmd + ' exec'
-    elif rvm and self.is_executable(rvm_cmd):
-      COMMAND_PREFIX = rvm_cmd + ' -S'
 
   def bundler_support(self):
     project_root = self.file_type(None, False).find_project_root()
