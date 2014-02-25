@@ -4,6 +4,7 @@ import functools
 import sublime
 import string
 import sublime_plugin
+import subprocess
 
 class ShowInPanel:
   def __init__(self, window):
@@ -138,9 +139,11 @@ class BaseRubyTask(sublime_plugin.TextCommand):
     global THEME; THEME = s.get('theme')
 
     chruby  = s.get("check_for_chruby")
+    rubyver = self.find_chruby_ver(s.get("ruby_version"))
+
     rbenv   = s.get("check_for_rbenv")
     rvm     = s.get("check_for_rvm")
-    self.try_chruby(chruby) or self.try_rbenv(rbenv) or self.try_rvm(rvm)
+    self.try_chruby(chruby, rubyver, s) or self.try_rbenv(rbenv) or self.try_rvm(rvm)
 
     spring  = s.get("check_for_spring")
     if spring: self.spring_support()
@@ -148,14 +151,51 @@ class BaseRubyTask(sublime_plugin.TextCommand):
     bundler = s.get("check_for_bundler")
     if bundler: self.bundler_support()
 
-  def try_chruby(self, chruby):
+  def find_chruby_ver(self, ver):
+    if ver:
+      return ver
+    root = self.find_proj_root()
+    user_root = self.find_user_root()
+    ppath = os.path.join(root, '.ruby_version')
+    upath = os.path.join(user_root, '.ruby_version')
+    return self.get_ruby_ver(ppath) or self.get_ruby_ver(upath)
+
+  def get_ruby_ver(self, path):
+    found_ver = False
+    if os.path.isfile(path):
+      for line in open(path, 'r'):
+        if not found_ver:
+          found_ver = self.extract_ruby_version(line.strip())
+    return found_ver
+
+  def extract_ruby_version(self, txt):
+    if len(txt) < 1:
+      return False
+    return txt
+
+  def find_user_root(self):
+    return os.path.expanduser("~")
+
+  def find_proj_root(self):
+    folders = self.window().folders()
+    if len(folders) == 0:
+      return False
+    return folders[0]
+
+  def try_chruby(self, chruby, ver, settings):
+
     if not chruby:
       return False
-    chruby_cmd = os.path.expanduser('source /usr/local/opt/chruby/share/chruby/chruby.sh && chruby')
+    if not ver:
+      return False
+    chruby_cmd = settings.get('path_to_chruby_exec') or '/usr/local/bin/chruby-exec'
+
+    if not os.path.isfile(chruby_cmd):
+      return False
     if not self.is_executable(chruby_cmd):
       return False
     global COMMAND_PREFIX
-    COMMAND_PREFIX = chruby_cmd + ' `[ -f .ruby-version ] && cat .ruby-version || ruby` &&'
+    COMMAND_PREFIX = chruby_cmd + ' ' + ver + ' --'
     return True
 
   def try_rbenv(self, rbenv):
@@ -183,7 +223,9 @@ class BaseRubyTask(sublime_plugin.TextCommand):
 
   def spring_support(self):
     global COMMAND_PREFIX
-    COMMAND_PREFIX = COMMAND_PREFIX + " spring "
+    if not COMMAND_PREFIX:
+      COMMAND_PREFIX = ""
+    COMMAND_PREFIX = COMMAND_PREFIX + " bin/spring "
 
   def bundler_support(self):
     project_root = self.file_type(None, False).find_project_root()
