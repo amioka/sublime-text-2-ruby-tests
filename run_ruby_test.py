@@ -4,7 +4,7 @@ import functools
 import sublime
 import string
 import sublime_plugin
-import subprocess
+
 
 class ShowInPanel:
   def __init__(self, window):
@@ -344,6 +344,7 @@ class BaseRubyTask(sublime_plugin.TextCommand):
     def possible_alternate_files(self): return list( set( [self.file_name.replace("_spec.rb", ".rb"), self.file_name.replace(".haml_spec.rb", ".haml"), self.file_name.replace(".erb_spec.rb", ".erb")] ) - set([self.file_name]) )
     def run_all_tests_command(self): return RubyTestSettings().run_rspec_command(relative_path=self.relative_file_path())
     def run_single_test_command(self, view): return RubyTestSettings().run_single_rspec_command(relative_path=self.relative_file_path(), line_number=self.get_current_line_number(view))
+    def run_suite_test_command(self, view): return RubyTestSettings().run_suite_rspec_command()
     def features(self): return super(BaseRubyTask.RSpecFile, self).features() + ["run_test"]
     def get_project_root(self): return self.find_project_root()
 
@@ -406,6 +407,16 @@ class RunSingleRubyTest(BaseRubyTask):
     self.save_all()
     file = self.file_type()
     command = file.run_single_test_command(self.view)
+    self.run_shell_command(command, file.get_project_root())
+
+
+class RunSuiteRubyTest(BaseRubyTask):
+  def is_enabled(self): return 'run_test' in self.file_type().features()
+  def run(self, edit):
+    self.load_config()
+    self.save_all()
+    file = self.file_type()
+    command = file.run_suite_test_command(self.view)
     self.run_shell_command(command, file.get_project_root())
 
 

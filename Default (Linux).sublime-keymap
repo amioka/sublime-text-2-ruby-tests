@@ -1,4 +1,6 @@
 [
+  { "keys": ["ctrl+shift+y"], "command": "run_suite_ruby_test" }, // suite test
+
   { "keys": ["ctrl+shift+r"], "command": "run_single_ruby_test",
     "context": [ { "key": "selector", "operator": "equal",
                    "operand": "source.ruby, source.rspec, text.gherkin.feature"

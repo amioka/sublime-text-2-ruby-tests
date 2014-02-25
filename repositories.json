@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "repositories": [
-    "https://github.com/maltize/sublime-text-2-ruby-tests"
+    "https://github.com/guyboertje/sublime-text-2-ruby-tests.git"
   ],
   "package_name_map": {
     "sublime-text-2-ruby-tests": "RubyTest"

@@ -1,17 +1,17 @@
 [
+  { "keys": ["super+shift+y"], "command": "run_suite_ruby_test" }, // suite test
+  
   { "keys": ["super+shift+r"], "command": "run_single_ruby_test",
     "context": [ { "key": "selector", "operator": "equal",
                    "operand": "source.ruby, source.rspec, text.gherkin.feature"
                } ]
   }, // single test
 
-
   { "keys": ["super+shift+t"], "command": "run_all_ruby_test",
       "context": [ { "key": "selector", "operator": "equal",
 		     "operand": "source.ruby, source.rspec, text.gherkin.feature"
                 } ]
   }, // test file
-
 
   { "keys": ["super+shift+e"], "command": "run_last_ruby_test",
     "context": [ { "key": "selector", "operator": "equal",

@@ -1,4 +1,5 @@
 [
+  { "caption": "RubyTest: Run Suite Test", "command": "run_suite_ruby_test" },
   { "caption": "RubyTest: Run Single Test", "command": "run_single_ruby_test" },
   { "caption": "RubyTest: Run All Ruby Tests", "command": "run_all_ruby_test" },
   { "caption": "RubyTest: Run Last Ruby Test", "command": "run_last_ruby_test" },

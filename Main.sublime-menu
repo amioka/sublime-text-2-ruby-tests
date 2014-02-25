@@ -6,6 +6,10 @@
         "caption":"RubyTest",
         "children":[
           {
+            "caption":"Run spec suite",
+            "command":"run_suite_ruby_test"
+          },
+          {
             "caption":"Run single test / scenario / spec",
             "command":"run_single_ruby_test"
           },
