@@ -4,7 +4,7 @@ import functools
 import sublime
 import string
 import sublime_plugin
-
+import shutil
 
 class ShowInPanel:
   def __init__(self, window):
@@ -183,15 +183,11 @@ class BaseRubyTask(sublime_plugin.TextCommand):
     return folders[0]
 
   def try_chruby(self, chruby, ver, settings):
-
     if not chruby:
       return False
     if not ver:
       return False
-    chruby_cmd = settings.get('path_to_chruby_exec') or '/usr/local/bin/chruby-exec'
-
-    if not os.path.isfile(chruby_cmd):
-      return False
+    chruby_cmd = settings.get('path_to_chruby_exec') or self.which_exec('chruby-exec')
     if not self.is_executable(chruby_cmd):
       return False
     global COMMAND_PREFIX
@@ -201,15 +197,19 @@ class BaseRubyTask(sublime_plugin.TextCommand):
   def try_rbenv(self, rbenv):
     if not rbenv:
       return False
-    which = os.popen('which rbenv').read().split('\n')[0]
-    brew = '/usr/local/bin/rbenv'
-    rbenv_cmd = os.path.expanduser('~/.rbenv/bin/rbenv')
-    if os.path.isfile(brew): rbenv_cmd = brew
-    elif os.path.isfile(which): rbenv_cmd = which
+    rbenv_cmd = self.which_exec('rbenv') or os.path.expanduser('~/.rbenv/bin/rbenv')
     if not self.is_executable(rbenv_cmd):
       return False
     global COMMAND_PREFIX; COMMAND_PREFIX = rbenv_cmd + ' exec'
     return True
+
+  def which_exec(self, cmd):
+    path = ''
+    if sublime.version() < '3000':
+      path = os.popen('which ' + cmd).read().split('\n')[0]
+    else:
+      path = shutil.which(cmd) or shutil.which(cmd, path='/usr/local/bin')
+    return path
 
   def try_rvm(self, rvm):
     if not rvm:
@@ -519,7 +519,7 @@ class RubyExtractVariable(BaseRubyTask):
     line = self.view.line(selection)
     white_space = re.match("\s*", self.view.substr(line)).group()
     content = white_space + name + " = " + extracted + "\n"
-    try:
+    if sublime.version() < '3000':
       # ST2
       edit = self.view.begin_edit()
       try:
@@ -527,7 +527,7 @@ class RubyExtractVariable(BaseRubyTask):
         self.view.insert(edit, line.begin(), content)
       finally:
         self.view.end_edit(edit)
-    except TypeError:
+    else:
       # ST3
       self.view.run_command("view_replace", { "begin" : selection.begin(), "end": selection.end(), "name": name });
       self.view.run_command("view_insert",  { "size" : line.begin(), "content": content });
