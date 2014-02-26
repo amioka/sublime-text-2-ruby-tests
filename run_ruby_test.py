@@ -156,8 +156,8 @@ class BaseRubyTask(sublime_plugin.TextCommand):
       return ver
     root = self.find_proj_root()
     user_root = self.find_user_root()
-    ppath = os.path.join(root, '.ruby_version')
-    upath = os.path.join(user_root, '.ruby_version')
+    ppath = os.path.join(root, '.ruby-version')
+    upath = os.path.join(user_root, '.ruby-version')
     return self.get_ruby_ver(ppath) or self.get_ruby_ver(upath)
 
   def get_ruby_ver(self, path):
