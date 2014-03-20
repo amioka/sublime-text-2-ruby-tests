@@ -314,7 +314,7 @@ class BaseRubyTask(sublime_plugin.TextCommand):
   class RubyFile(BaseFile):
     def verify_syntax_command(self): return RubyTestSettings().ruby_verify_command(file_name=self.file_name)
     def possible_alternate_files(self): return [self.file_name.replace(".rb", "_spec.rb"), self.file_name.replace(".rb", "_test.rb"), "test_" + self.file_name, self.file_name.replace(".rb", ".feature")]
-    def features(self): return ["verify_syntax", "switch_to_test", "rails_generate", "extract_variable"]
+    def features(self): return ["verify_syntax", "switch_to_test", "run_test", "rails_generate", "extract_variable"]
 
   class UnitFile(RubyFile):
     def possible_alternate_files(self): return [self.file_name.replace("_test.rb", ".rb").replace("test_", "")]
@@ -399,6 +399,38 @@ class BaseRubyTask(sublime_plugin.TextCommand):
     else:
       return BaseRubyTask.BaseFile(file_name)
 
+  def walk(self, directory):
+    for dir, dirnames, files in os.walk(directory):
+      dirnames[:] = [dirname for dirname in dirnames if dirname not in IGNORED_DIRECTORIES]
+      yield dir, dirnames, files
+
+  def project_files(self, file_matcher):
+    directories = self.window().folders()
+    return [os.path.join(dirname, file) for directory in directories for dirname, _, files in self.walk(directory) for file in filter(file_matcher, files)]
+
+  def get_alternate_file(self, on_finished):
+    possible_alternates = self.file_type().possible_alternate_files()
+    alternates = self.project_files(lambda file: file in possible_alternates)
+
+    for alternate in alternates:
+      if re.search(self.file_type().parent_dir_name(), alternate):
+        alternates = [alternate]
+        break
+
+    if alternates:
+      if len(alternates) == 1:
+        on_finished(alternates.pop())
+      else:
+        callback = functools.partial(self.on_selected, on_finished, alternates)
+        self.window().show_quick_panel(alternates, callback)
+    else:
+      return None
+
+  def on_selected(self, on_finished, alternates, index):
+    if index == -1:
+      return
+
+    on_finished(alternates[index])
 
 class RunSingleRubyTest(BaseRubyTask):
   def is_enabled(self): return 'run_test' in self.file_type().features()
@@ -427,11 +459,21 @@ class RunAllRubyTest(BaseRubyTask):
     self.save_all()
     file = self.file_type(self.view.file_name())
     command = file.run_all_tests_command()
+    if command is None:
+      self.get_alternate_file(self.on_finished)
+    else:
+      self.run_test(file, command)
+
+  def on_finished(self, alternate):
+      file = self.file_type(alternate)
+      command = file.run_all_tests_command()
+      self.run_test(file, command)
+
+  def run_test(self, file, command):
     if self.run_shell_command(command, file.get_project_root()):
       pass
     else:
       sublime.error_message("Only *_test.rb, test_*.rb, *_spec.rb, *.feature files supported!")
-
 
 class RunLastRubyTest(BaseRubyTask):
   def load_last_run(self):
@@ -459,40 +501,16 @@ class SwitchBetweenCodeAndTest(BaseRubyTask):
   def is_enabled(self): return 'switch_to_test' in self.file_type().features()
   def run(self, edit, split_view):
     self.load_config()
-    possible_alternates = self.file_type().possible_alternate_files()
-    alternates = self.project_files(lambda file: file in possible_alternates)
+    callback = functools.partial(self.on_finished, split_view)
+    alternates = self.get_alternate_file(callback)
 
-    for alternate in alternates:
-      if re.search(self.file_type().parent_dir_name(), alternate):
-        alternates = [alternate]
-        break
-
-    if alternates:
-      if split_view:
-        ShowPanels(self.window()).split()
-      if len(alternates) == 1:
-        self.window().open_file(alternates.pop())
-      else:
-        callback = functools.partial(self.on_selected, alternates)
-        self.window().show_quick_panel(alternates, callback)
-    else:
+    if not alternates:
       GenerateTestFile(self.window(), split_view).doIt()
 
-  def on_selected(self, alternates, index):
-    if index == -1:
-      return
-
-    self.window().open_file(alternates[index])
-
-  def walk(self, directory):
-    for dir, dirnames, files in os.walk(directory):
-      dirnames[:] = [dirname for dirname in dirnames if dirname not in IGNORED_DIRECTORIES]
-      yield dir, dirnames, files
-
-  def project_files(self, file_matcher):
-    directories = self.window().folders()
-    return [os.path.join(dirname, file) for directory in directories for dirname, _, files in self.walk(directory) for file in filter(file_matcher, files)]
-
+  def on_finished(self, split_view, alternate):
+    if split_view:
+      ShowPanels(self.window()).split()
+    self.window().open_file(alternate)
 
 class RubyRailsGenerate(BaseRubyTask):
   def is_enabled(self): return 'rails_generate' in self.file_type().features()
